@@ -1,0 +1,346 @@
+<?php
+// Configuração da Cifra
+$deslocamento = 3; // Valor padrão
+$texto_entrada = '';
+$texto_saida = '';
+$modo = 'criptografar';
+
+// Captura o IP local do host
+$ip_local = getHostByName(getHostName());
+$porta = 8000;
+$url_rede = "http://{$ip_local}:{$porta}";
+
+// Função para converter letras com acento em letras sem acento
+function removerAcentos($texto) {
+    $mapa = array(
+        'á' => 'a', 'à' => 'a', 'ã' => 'a', 'â' => 'a', 'ä' => 'a', 'å' => 'a',
+        'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+        'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'õ' => 'o', 'ô' => 'o', 'ö' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u',
+        'ç' => 'c', 'ñ' => 'n',
+        'Á' => 'A', 'À' => 'A', 'Ã' => 'A', 'Â' => 'A', 'Ä' => 'A', 'Å' => 'A',
+        'É' => 'E', 'È' => 'E', 'Ê' => 'E', 'Ë' => 'E',
+        'Í' => 'I', 'Ì' => 'I', 'Î' => 'I', 'Ï' => 'I',
+        'Ó' => 'O', 'Ò' => 'O', 'Õ' => 'O', 'Ô' => 'O', 'Ö' => 'O',
+        'Ú' => 'U', 'Ù' => 'U', 'Û' => 'U', 'Ü' => 'U',
+        'Ç' => 'C', 'Ñ' => 'N'
+    );
+    return strtr($texto, $mapa);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $texto_entrada = $_POST['texto_entrada'] ?? '';
+    $modo = $_POST['modo'] ?? 'criptografar';
+    
+    // Captura o deslocamento dinâmico da interface (ou usa 3 se estiver vazio/inválido)
+    $deslocamento_input = isset($_POST['deslocamento']) ? (int)$_POST['deslocamento'] : 3;
+    $deslocamento = $deslocamento_input; // Atualiza a variável para manter na tela
+
+    $deslocamento_real = ($modo === 'descriptografar') ? -$deslocamento : $deslocamento;
+
+    // Remove os acentos
+    $texto_limpo = removerAcentos($texto_entrada);
+
+    // Dividimos a string
+    $caracteres = preg_split('//u', $texto_limpo, -1, PREG_SPLIT_NO_EMPTY);
+    
+    if ($caracteres !== false) {
+        foreach ($caracteres as $char) {
+            // Verifica se é uma letra comum
+            if (preg_match('/^[a-zA-Z]$/', $char)) {
+                $ascii = ord($char);
+                $base = ctype_upper($char) ? 65 : 97;
+                
+                $posicao_deslocada = (($ascii - $base + $deslocamento_real) % 26 + 26) % 26 + $base;
+                $texto_saida .= chr($posicao_deslocada);
+            } else {
+                // Mantém espaços, números, pontuações e emojis inalterados
+                $texto_saida .= $char;
+            }
+        }
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cifra7 - Criptografia</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+            position: relative; /* Necessário para posicionar a tag de rede */
+        }
+        
+        /* Estilo da Tag de Rede no canto direito */
+        .network-info {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background-color: #ecf0f1;
+            color: #7f8c8d;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 11px;
+            font-family: monospace;
+            border: 1px solid #bdc3c7;
+            text-align: right;
+        }
+        .network-info strong {
+            display: block;
+            color: #2c3e50;
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 5px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        textarea, input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        input[type="number"] {
+            font-family: Arial, sans-serif;
+        }
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #2196F3;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #e74c3c;
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        .mode-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .btn-acao {
+            width: 100%;
+            padding: 12px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .btn-acao:hover {
+            background-color: #1a252f;
+        }
+        
+        .btn-copiar {
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-copiar:hover {
+            background-color: #2ecc71;
+        }
+
+        .btn-copiar::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+        }
+
+        .btn-copiar:hover::after {
+            animation: brilho-pedra 1.5s infinite;
+        }
+
+        @keyframes brilho-pedra {
+            0% { left: -150%; }
+            50% { left: 200%; }
+            100% { left: 200%; }
+        }
+
+        @keyframes tremer {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-1px, -2px) rotate(-1deg); }
+            40% { transform: translate(-2px, 0px) rotate(1deg); }
+            60% { transform: translate(2px, 2px) rotate(0deg); }
+            80% { transform: translate(1px, -1px) rotate(1deg); }
+            100% { transform: translate(1px, 1px) rotate(0deg); }
+        }
+        .brilho-tremor {
+            animation: tremer 0.3s infinite;
+            box-shadow: 0 0 15px 5px rgba(52, 152, 219, 0.7);
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="network-info">
+        <strong>Acesso na Rede:</strong>
+        <?php echo htmlspecialchars($url_rede); ?>
+    </div>
+
+    <h2>Cifra7</h2>
+    
+    <form method="POST" action="">
+        <div class="switch-container" style="margin-top: 30px;">
+            <span class="mode-label">Criptografar</span>
+            <label class="switch">
+                <input type="checkbox" id="modo_checkbox" onchange="updateModo()" <?php if($modo === 'descriptografar') echo 'checked'; ?>>
+                <span class="slider"></span>
+            </label>
+            <span class="mode-label">Descriptografar</span>
+            <input type="hidden" name="modo" id="modo_hidden" value="<?php echo htmlspecialchars($modo); ?>">
+        </div>
+
+        <div class="form-group">
+            <label for="deslocamento">Número de casas a pular:</label>
+            <input type="number" name="deslocamento" id="deslocamento" value="<?php echo htmlspecialchars($deslocamento); ?>" required>
+        </div>
+
+        <div class="form-group">
+            <label for="texto_entrada">Escrita (Entrada):</label>
+            <textarea name="texto_entrada" id="texto_entrada" placeholder="Digite sua mensagem aqui..."><?php echo htmlspecialchars($texto_entrada); ?></textarea>
+        </div>
+
+        <button type="submit" class="btn-acao" id="btn-executar">Executar</button>
+
+        <div class="form-group" style="margin-top: 20px;">
+            <label for="texto_saida">Leitura (Resultado):</label>
+            <textarea id="texto_saida" readonly placeholder="O resultado aparecerá aqui..."><?php echo htmlspecialchars($texto_saida); ?></textarea>
+            
+            <button type="button" class="btn-copiar" id="btn-copiar">Copiar Resultado</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Troca de cripto e decripto
+    function updateModo() {
+        const checkbox = document.getElementById('modo_checkbox');
+        const hiddenInput = document.getElementById('modo_hidden');
+        if (checkbox.checked) {
+            hiddenInput.value = 'descriptografar';
+        } else {
+            hiddenInput.value = 'criptografar';
+        }
+    }
+
+    // Animação braba no botão executar
+    const btnExecutar = document.getElementById('btn-executar');
+    btnExecutar.addEventListener('mouseenter', function() {
+        this.classList.add('brilho-tremor');
+    });
+    btnExecutar.addEventListener('mouseleave', function() {
+        this.classList.remove('brilho-tremor');
+    });
+
+    // Função cópia
+    const btnCopiar = document.getElementById('btn-copiar');
+    btnCopiar.addEventListener('click', function() {
+        const textoSaida = document.getElementById('texto_saida');
+        
+        if(textoSaida.value.trim() !== '') {
+            // API
+            navigator.clipboard.writeText(textoSaida.value).then(function() {
+                // Efeito de sucesso
+                const textoOriginal = btnCopiar.innerText;
+                btnCopiar.innerText = 'Copiado!';
+                btnCopiar.style.backgroundColor = '#27ae60';
+                
+                setTimeout(function() {
+                    btnCopiar.innerText = textoOriginal;
+                }, 2000);
+            }).catch(function(err) {
+                alert('Erro ao copiar o texto: ', err);
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
